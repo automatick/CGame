@@ -80,7 +80,7 @@ bool updateButton(Button *button) {
 }
 
 void drawButton(const Button *button) {
-    const unsigned int      textWidth           = MeasureText(button->text, 20)     ;
+    const unsigned int      textWidth           = MeasureText(button->text, 20)            ;
     const Color             outlineColor        = darken(button->currentColor)             ;
     DrawRectangle(button->bound.x, button->bound.y, button->bound.width, button->bound.height, button->currentColor);
     DrawRectangleLines(button->bound.x, button->bound.y, button->bound.width, button->bound.height, outlineColor);
@@ -90,9 +90,9 @@ void drawButton(const Button *button) {
 void mainMenu (const int scrWidth, const int scrHeight) {
     const Rectangle     buttonPosS      = {scrWidth / 2 - 50 , scrHeight / 2 - 50, 100, 50 }        ;
     const Rectangle     buttonPosE      = {scrWidth / 2 - 50 , scrHeight / 2, 100, 50      }        ;
-    Button              start           = buttonInit( &buttonPosS, &BLACK, &DARKGRAY, "Start")   ;
-    Button              exit            = buttonInit( &buttonPosE, &BLACK, &DARKGRAY, "Exit")    ;
-    bool                gameRunning     = false                                                                     ;
+    Button              start           = buttonInit( &buttonPosS, &BLACK, &DARKGRAY, "Start")      ;
+    Button              exit            = buttonInit( &buttonPosE, &BLACK, &DARKGRAY, "Exit")       ;
+    bool                gameRunning     = false                                                     ;
     while (!gameRunning && !WindowShouldClose()) {
         gameRunning = updateButton(&start);
         if (updateButton(&exit)) {
