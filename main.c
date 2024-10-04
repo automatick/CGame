@@ -2,7 +2,7 @@
 #include <raylib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <math.h>
+#include <stdlib.h>
 
 #define uint unsigned int
 
@@ -133,7 +133,7 @@ void drawPlayer(const Player *player) {
     DrawRectangleRec(player->bound, RED);
 }
 
-void keyHandle(Player *player, Wall walls[5]) {
+void keyHandle(Player *player, Wall walls[], const int wallCount) {
     Vector2 nextStep = { player->bound.x, player->bound.y }         ;
 
     if (IsKeyDown(KEY_A)) nextStep.x -= (5 * player->speed)         ;
@@ -147,7 +147,7 @@ void keyHandle(Player *player, Wall walls[5]) {
     player->velocity.y          += GRAVITY                          ;
     nextStep.y                  += player->velocity.y               ;
 
-    for (uint i = 0; i < 5; i++) {
+    for (uint i = 0; i < wallCount; i++) {
         if (CheckCollisionRecs((Rectangle){nextStep.x, nextStep.y, player->bound.width, player->bound.height}, walls[i].bound)) {
             if (player->velocity.y > 0) {
                 player->onGround = true                                     ;
@@ -173,22 +173,28 @@ void keyHandle(Player *player, Wall walls[5]) {
 void mainGameLoop(const int scrWidth, const int scrHeight) {
     Rectangle const pBound = {100, 100, 50, 50}                                 ;
     Player player = playerInit(&pBound, &BLACK, STANDARD_HP, STANDARD_SPEED)    ;
-    Wall walls[5] = {
-        wallInit(&(Rectangle){100, 300, 800, 30}, &DARKGRAY),
-        wallInit(&(Rectangle){100, 100, 30, 200}, &DARKGRAY),
-        wallInit(&(Rectangle){400, 100, 30, 200}, &DARKGRAY),
-        wallInit(&(Rectangle){700, 100, 30, 200}, &DARKGRAY),
-        wallInit(&(Rectangle){250, 400, 300, 30}, &DARKGRAY)
-    };                                                                    ;
+    const int wallCount = 7;
+    Wall *walls = (Wall *)malloc(wallCount * sizeof(Wall));
+    if (walls == NULL) {
+        printf("Error lol.\n");
+        return;
+    }                                                               ;
+
+    walls[0] = wallInit(&(Rectangle){100, 300, 800, 30}, &DARKGRAY);
+    walls[1] = wallInit(&(Rectangle){100, 100, 30, 200}, &DARKGRAY);
+    walls[2] = wallInit(&(Rectangle){400, 100, 30, 200}, &DARKGRAY);
+    walls[3] = wallInit(&(Rectangle){700, 100, 30, 200}, &DARKGRAY);
+    walls[4] = wallInit(&(Rectangle){250, 400, 300, 30}, &DARKGRAY);
+    walls[5] = wallInit(&(Rectangle){300, 400, 30, 40}, &DARKGRAY);
 
     Camera2D camera = { 0 }                                         ;
     camera.rotation = 0.0f                                          ;
     camera.target = calculatePlayerCenter(&player)                  ;
     camera.offset = (Vector2){ scrWidth / 2.0f, scrHeight / 2.0f }  ;
-    camera.zoom = 1.0f                                              ;
+    camera.zoom = 0.5f                                              ;
 
     while (!WindowShouldClose()) {
-        keyHandle(&player, walls)                           ;
+        keyHandle(&player, walls, wallCount)                ;
         camera.target = calculatePlayerCenter(&player)      ;
         BeginDrawing()                                      ;
         ClearBackground(RAYWHITE)                           ;
@@ -200,6 +206,7 @@ void mainGameLoop(const int scrWidth, const int scrHeight) {
         EndMode2D()                                         ;
         EndDrawing()                                        ;
     }
+    free(walls);
 }
 
 int main(void) {
