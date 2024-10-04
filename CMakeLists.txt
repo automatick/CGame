@@ -7,4 +7,4 @@ link_directories("~/Documents/raylib-5.0_linux_amd64/lib")
 
 add_executable(CGame main.c)
 
-target_link_libraries(CGame PRIVATE raylib)
+target_link_libraries(CGame PRIVATE raylib m)

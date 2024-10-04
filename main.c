@@ -2,7 +2,7 @@
 #include <raylib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdlib.h>
+#include <math.h>
 
 #define uint unsigned int
 
@@ -11,6 +11,8 @@
 #define FPS                  60
 #define STANDARD_HP          20
 #define STANDARD_SPEED        3
+#define GRAVITY 0.5f
+#define JUMP_FORCE -10.0f
 
 typedef struct {
     Rectangle bound     ;
@@ -20,11 +22,13 @@ typedef struct {
     char text[50]       ;
 } Button;
 
-typedef struct {
-    Rectangle bound     ;
-    Color currentColor  ;
-    uint hp             ;
-    uint speed          ;
+typedef struct Player {
+    Rectangle bound         ;
+    Vector2 velocity        ;
+    float speed             ;
+    Color currentColor      ;
+    uint hp                 ;
+    bool onGround           ;
 } Player;
 
 typedef struct {
@@ -62,12 +66,14 @@ Wall wallInit( Rectangle const *bound, Color const *currentColor ) {
 }
 
 Player playerInit( Rectangle const *bound, Color const *currentColor, const uint hp, const uint speed ) {
-    Player player                               ;
-    player.bound            = *bound            ;
-    player.currentColor     = *currentColor     ;
-    player.hp               = hp                ;
-    player.speed            = speed             ;
-    return player                               ;
+    Player player                                       ;
+    player.bound            = *bound                    ;
+    player.currentColor     = *currentColor             ;
+    player.hp               = hp                        ;
+    player.speed            = speed                     ;
+    player.onGround         = true                      ;
+    player.velocity         = (Vector2){0, 0}           ;
+    return player                                       ;
 }
 
 Vector2 calculatePlayerCenter(Player const *player) {
@@ -128,46 +134,71 @@ void drawPlayer(const Player *player) {
 }
 
 void keyHandle(Player *player, Wall walls[5]) {
+    Vector2 nextStep = { player->bound.x, player->bound.y }         ;
 
-    Vector2 nextStep = { player->bound.x, player->bound.y }     ;
+    if (IsKeyDown(KEY_A)) nextStep.x -= (5 * player->speed)         ;
+    if (IsKeyDown(KEY_D)) nextStep.x += (5 * player->speed)         ;
 
-    if (IsKeyDown(KEY_A)) nextStep.x += (5 * player->speed)     ;
-    if (IsKeyDown(KEY_D)) nextStep.x -= (5 * player->speed)     ;
-    if (IsKeyDown(KEY_S)) nextStep.y -= (5 * player->speed)     ;
-    if (IsKeyDown(KEY_W)) nextStep.y += (5 * player->speed)     ;
+    if (IsKeyPressed(KEY_SPACE) && player->onGround) {
+        player->velocity.y      = JUMP_FORCE                        ;
+        player->onGround        = false                             ;
+    }
+
+    player->velocity.y          += GRAVITY                          ;
+    nextStep.y                  += player->velocity.y               ;
+
     for (uint i = 0; i < 5; i++) {
-        if (CheckCollisionRecs(player->bound, walls[i].bound)) {
-            return;
+        if (CheckCollisionRecs((Rectangle){nextStep.x, nextStep.y, player->bound.width, player->bound.height}, walls[i].bound)) {
+            if (player->velocity.y > 0) {
+                player->onGround = true                                     ;
+                player->velocity.y = 0                                      ;
+                nextStep.y = walls[i].bound.y - player->bound.height        ;
+            }
+            break;
         }
     }
+    for (uint i = 0; i < 5; i++) {
+        if (CheckCollisionRecs((Rectangle){nextStep.x, player->bound.y, player->bound.width, player->bound.height}, walls[i].bound)) {
+            if (nextStep.x < walls[i].bound.x) {
+                nextStep.x = walls[i].bound.x - player->bound.width             ;
+            } else if (nextStep.x > walls[i].bound.x + walls[i].bound.width) {
+                nextStep.x = walls[i].bound.x + walls[i].bound.width            ;
+            }
+        }
+    }
+
     player->bound = (Rectangle){nextStep.x, nextStep.y, player->bound.width, player->bound.height};
 }
 
 void mainGameLoop(const int scrWidth, const int scrHeight) {
+    Rectangle const pBound = {100, 100, 50, 50}                                 ;
+    Player player = playerInit(&pBound, &BLACK, STANDARD_HP, STANDARD_SPEED)    ;
+    Wall walls[5] = {
+        wallInit(&(Rectangle){100, 300, 800, 30}, &DARKGRAY),
+        wallInit(&(Rectangle){100, 100, 30, 200}, &DARKGRAY),
+        wallInit(&(Rectangle){400, 100, 30, 200}, &DARKGRAY),
+        wallInit(&(Rectangle){700, 100, 30, 200}, &DARKGRAY),
+        wallInit(&(Rectangle){250, 400, 300, 30}, &DARKGRAY)
+    };                                                                    ;
 
-    Rectangle const pBound          = {100, 100, 50, 50}                                            ;
-    Player player                   = playerInit(&pBound, &BLACK, STANDARD_HP, STANDARD_SPEED)      ;
-    Wall walls[5]                   = {wallInit(&(Rectangle){20, 20, 30, 30}, &DARKGRAY)}           ;
-
-    Camera2D camera             = { 0 }                                             ;
-    camera.rotation             = 0.0f                                              ;
-    camera.target               = calculatePlayerCenter(&player)                    ;
-    camera.offset               = (Vector2){ scrWidth / 2.0f, scrHeight / 2.0f }    ;
-    camera.zoom                 = 1.0f                                              ;
+    Camera2D camera = { 0 }                                         ;
+    camera.rotation = 0.0f                                          ;
+    camera.target = calculatePlayerCenter(&player)                  ;
+    camera.offset = (Vector2){ scrWidth / 2.0f, scrHeight / 2.0f }  ;
+    camera.zoom = 1.0f                                              ;
 
     while (!WindowShouldClose()) {
-        keyHandle(&player, walls)                                   ;
-        camera.target = calculatePlayerCenter(&player)              ;
+        keyHandle(&player, walls)                           ;
+        camera.target = calculatePlayerCenter(&player)      ;
+        BeginDrawing()                                      ;
+        ClearBackground(RAYWHITE)                           ;
+        BeginMode2D(camera)                                 ;
         for (uint i = 0; i < 5; i++) {
-            DrawRectangleRec(walls[i].bound, walls[i].currentColor) ;
+            DrawRectangleRec(walls[i].bound, walls[i].currentColor);
         }
-        BeginDrawing()                                              ;
-        ClearBackground(RAYWHITE)                                   ;
-        BeginMode2D(camera)                                         ;
-        drawPlayer(&player)                                         ;
-        DrawRectangleRec((Rectangle){100, 100, 50, 50}, BLUE)       ;
-        EndMode2D()                                                 ;
-        EndDrawing()                                                ;
+        drawPlayer(&player)                                 ;
+        EndMode2D()                                         ;
+        EndDrawing()                                        ;
     }
 }
 
